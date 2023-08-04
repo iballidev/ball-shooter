@@ -1,5 +1,3 @@
-
-
 body {
     margin: 0;
     background: black;
@@ -7,4 +5,8 @@ body {
 
 canvas {
     cursor: pointer;
+}
+
+.game-font {
+    font-family: "Press Start 2P", cursive;
 }

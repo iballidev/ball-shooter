@@ -6,12 +6,17 @@ const path = require("path");
 const expressLayoutes = require("express-ejs-layouts");
 const verifyJWT = require("./middlewares/veryfyJWT");
 const err = require("./middlewares/errors");
+const jwt = require("jsonwebtoken");
+
+const UserAccount = require("./models/user-account.model");
 
 const credentials = require("./middlewares/credentials");
 const corsOptions = require("./config/cors-options");
 
 const cookieParser = require("cookie-parser");
 var cookieSession = require("cookie-session");
+
+var session = require("express-session");
 
 dotenv.config();
 
@@ -27,7 +32,6 @@ app.use(bodyParser.urlencoded({ extended: false }));
 //This will extract json data and makes it easily readable
 app.use(bodyParser.json());
 
-
 /**Handle options credentials check - before CORS!
  * and fetch cookies credentials requirement
  */ app.use(credentials);
@@ -38,8 +42,10 @@ app.use(cors(corsOptions));
 /**DB Connection */
 dbConnection();
 
-/**Cookie */
+/**cookieParser */
 app.use(cookieParser());
+
+/**cookieSession */
 app.use(
   cookieSession({
     name: "session",
@@ -53,20 +59,43 @@ app.use(
   })
 );
 
-app.use(function (req, res, next) {
-    // console.log("req.locals sessions: ", req.session);
-    // console.log("req.locals cookie.jwt: ", req.cookies.jwt);
-    if (req.session.user) {
-      res.locals.isAuthenticated = req.session.user;
-    //   console.log("res.locals 1: ", res.locals.isAuthenticated);
-    } else {
-      res.locals.isAuthenticated = null;
-    //   console.log("res.locals 2: ", res.locals.isAuthenticated);
-      // res.locals.isAuthenticated = req.isAuthenticated();
+/**express-session */
+// app.set("trust proxy", 1); // trust first proxy
+// app.use(
+//   session({
+//     secret: "keyboard cat",
+//     resave: false,
+//     saveUninitialized: true,
+//     // genid: function (req) {
+//     //   return genuuid(); // use UUIDs for session IDs
+//     // },
+//     cookie: { secure: "auto" },
+//   })
+// );
+
+app.use(async (req, res, next) => {
+  res.locals.user = req.session.user?.userInfo;
+  res.locals.isLoggedIn = true;
+
+  let token = req.session.accessToken;
+
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err || !decoded) return (res.locals.isLoggedIn = true);
+
+    req.user = decoded.userInfo.email;
+    req.userId = decoded.userInfo._id;
+    req.roles = decoded.userInfo.roles;
+    req.session.user = decoded;
+    res.locals.user = req.session.user?.userInfo;
+
+    if (decoded.exp * 1000 < new Date().getTime()) {
+      res.locals.isLoggedIn = false;
     }
-    next();
+    res.locals.isLoggedIn = true;
   });
-  
+
+  next();
+});
 
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -80,19 +109,15 @@ const leaderBoardRoutes = require("./routes/leaderboard.routes");
 const userAccountRoutes = require("./routes/user-account.routes");
 const gameRoutes = require("./routes/game.routes");
 const logoutRoutes = require("./routes/logout.routes");
-const scorePointRoutes = require("./routes/score-point.routes");
 
 app.use("/signup", signupRoutes.routes);
 app.use("/auth", authRoutes.routes);
-app.use("/leaderboard", leaderBoardRoutes.routes);
 app.use("/logout", logoutRoutes.routes);
-app.use("/score-point", scorePointRoutes.routes);
 app.use(verifyJWT);
 app.use("/user-account", userAccountRoutes.routes);
 app.use("/game", gameRoutes.routes);
+app.use("/leaderboard", leaderBoardRoutes.routes);
 
 app.use(err);
-
-
 
 module.exports = app;

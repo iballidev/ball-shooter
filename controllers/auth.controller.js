@@ -78,11 +78,26 @@ exports.login_user = async (req, res) => {
         req.session.accessToken = `Bearer ${accessToken}`;
 
         // // Save refreshToken in db
-        user[0].refreshToken = await refreshToken;
+        user[0].refreshToken = refreshToken;
+        user[0].isOnline = true;
         user[0]
           .save()
           .then((result) => {
             console.log("result: ", result);
+            req.session.user = {
+              userId: result._id,
+              name: result.name,
+              email: result.email,
+              scorePoint: result.scorePoint,
+              roles: result.roles,
+              isOnline: user[0].isOnline,
+            };
+            res.locals.user = req.session.user;
+
+            console.log("req.session: ", req.session);
+
+            res.locals.isLoggedIn = true;
+
             res.cookie("jwt", refreshToken, {
               httpOnly: true,
               sameSite: "None",
@@ -119,6 +134,7 @@ function assignJwt(user, tokenExp, token_secret) {
   let token = jwt.sign(
     {
       userInfo: {
+        name: user[0]?.name,
         email: user[0]?.email,
         userId: user[0]?._id,
         roles: user[0]?.roles,

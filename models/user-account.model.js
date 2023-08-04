@@ -3,6 +3,7 @@ const USER_ROLES = require("../config/user-roles");
 
 const UserAccountSchema = mongoose.Schema({
   _id: mongoose.Schema.Types.ObjectId,
+  name: { type: String, required: true },
   email: {
     type: String,
     required: true,
@@ -17,6 +18,8 @@ const UserAccountSchema = mongoose.Schema({
     Editor: Number,
   },
   refreshToken: { type: String, default: "" },
+  scorePoint: { type: Number, required: true, default: 0 },
+  isOnline: { type: Boolean, default: false },
 });
 
 module.exports = mongoose.model("UserAccount", UserAccountSchema);
